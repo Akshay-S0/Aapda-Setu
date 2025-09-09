@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Linking, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
+import { ref, set } from 'firebase/database';
+import { database } from '../config/firebase';
 
 const { width } = Dimensions.get('window');
 
-// Configurable ESP32 base URL (replace with your ESP32 IP or hostname)
-const ESP_BASE_URL = 'http://192.168.0.100';
+// Firebase motor command path
+const MOTOR_COMMAND_PATH = 'motor/command';
 
 export default function DashboardScreen({ navigation }) {
   const { drones } = useData();
@@ -16,7 +18,7 @@ export default function DashboardScreen({ navigation }) {
   const drone = drones[0]; // Single VTOL drone
 
   const [motorRunning, setMotorRunning] = useState(false);
-  const [loadingAction, setLoadingAction] = useState(null); // 'start' | 'stop' | null
+  const [loadingAction, setLoadingAction] = useState(null); // 'clockwise' | 'anti' | 'stop' | null
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -35,26 +37,37 @@ export default function DashboardScreen({ navigation }) {
     return '#EF4444';
   };
 
-  const requestESP = async (path) => {
+  const writeMotorCommand = async (command) => {
     try {
-      const url = `${ESP_BASE_URL}${path}`;
-      const res = await fetch(url);
-      // We don't rely on body; ESP serves HTML. Just check ok flag.
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const commandRef = ref(database, MOTOR_COMMAND_PATH);
+      await set(commandRef, command);
+      console.log(`✅ Successfully sent command to Firebase: ${command}`);
       return true;
-    } catch (e) {
-      Alert.alert('ESP32 Error', `Failed to reach ESP32 (${e.message}). Check Wi‑Fi/IP.`);
+    } catch (error) {
+      console.error(`❌ Error sending command ${command} to Firebase:`, error);
+      Alert.alert('Firebase Error', `Failed to send command "${command}" to Firebase. Please check your connection.`);
       return false;
     }
   };
 
-  const onStartMotor = async () => {
+  const onClockwise = async () => {
     if (loadingAction) return;
-    setLoadingAction('start');
-    const ok = await requestESP('/start');
+    setLoadingAction('clockwise');
+    const ok = await writeMotorCommand('cw');
     if (ok) {
       setMotorRunning(true);
-      Alert.alert('Motor', 'Motor STARTED');
+      Alert.alert('Motor', 'Clockwise rotation command sent to Firebase');
+    }
+    setLoadingAction(null);
+  };
+
+  const onRotateAnti = async () => {
+    if (loadingAction) return;
+    setLoadingAction('anti');
+    const ok = await writeMotorCommand('ccw');
+    if (ok) {
+      setMotorRunning(true);
+      Alert.alert('Motor', 'Counter-clockwise rotation command sent to Firebase');
     }
     setLoadingAction(null);
   };
@@ -62,19 +75,14 @@ export default function DashboardScreen({ navigation }) {
   const onStopMotor = async () => {
     if (loadingAction) return;
     setLoadingAction('stop');
-    const ok = await requestESP('/stop');
+    const ok = await writeMotorCommand('stop');
     if (ok) {
       setMotorRunning(false);
-      Alert.alert('Motor', 'Motor STOPPED');
+      Alert.alert('Motor', 'Stop command sent to Firebase');
     }
     setLoadingAction(null);
   };
 
-  const onOpenESP = () => {
-    Linking.openURL(ESP_BASE_URL).catch(() => {
-      Alert.alert('Open Failed', 'Could not open the ESP32 web UI.');
-    });
-  };
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]} edges={['top', 'left', 'right']}>
@@ -149,15 +157,27 @@ export default function DashboardScreen({ navigation }) {
             Motor: {motorRunning ? 'RUNNING' : 'STOPPED'}
           </Text>
           <View style={styles.controlGrid}>
-            <TouchableOpacity style={styles.controlButton} onPress={onStartMotor} disabled={loadingAction === 'start'}>
+            <TouchableOpacity style={styles.controlButton} onPress={onClockwise} disabled={loadingAction === 'clockwise'}>
               <LinearGradient
                 colors={['#10B981', '#059669']}
                 style={styles.controlGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Ionicons name="play" size={28} color="#fff" />
-                <Text style={styles.controlText}>{loadingAction === 'start' ? 'Starting...' : 'Start Motor'}</Text>
+                <Ionicons name="refresh" size={28} color="#fff" />
+                <Text style={styles.controlText}>{loadingAction === 'clockwise' ? 'Starting...' : 'Clockwise'}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.controlButton} onPress={onRotateAnti} disabled={loadingAction === 'anti'}>
+              <LinearGradient
+                colors={['#3B82F6', '#1D4ED8']}
+                style={styles.controlGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="refresh" size={28} color="#fff" style={{ transform: [{ scaleX: -1 }] }} />
+                <Text style={styles.controlText}>{loadingAction === 'anti' ? 'Starting...' : 'Rotate Anti'}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -169,19 +189,7 @@ export default function DashboardScreen({ navigation }) {
                 end={{ x: 1, y: 1 }}
               >
                 <Ionicons name="stop" size={28} color="#fff" />
-                <Text style={styles.controlText}>{loadingAction === 'stop' ? 'Stopping...' : 'Stop Motor'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={onOpenESP}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8']}
-                style={styles.controlGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="globe" size={28} color="#fff" />
-                <Text style={styles.controlText}>Open ESP Web UI</Text>
+                <Text style={styles.controlText}>{loadingAction === 'stop' ? 'Stopping...' : 'Stop'}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
