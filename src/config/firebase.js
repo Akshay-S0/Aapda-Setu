@@ -5,11 +5,11 @@ import { getDatabase } from 'firebase/database';
 const firebaseConfig = {
   apiKey: " ",
   authDomain: "aapdasetu-c0ce1.firebaseapp.com",
-  databaseURL: "https://aapdasetu-c0ce1-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  databaseURL: " ",
   projectId: "aapdasetu-c0ce1",
   storageBucket: "aapdasetu-c0ce1.firebasestorage.app",
-  messagingSenderId: "199744637798", // You'll need to update this
-  appId: "1:199744637798:web:e4d96c09f69ee12519d6a7" // You'll need to update this
+  messagingSenderId: " ", // You'll need to update this
+  appId: " " // You'll need to update this
 };
 
 // Initialize Firebase
