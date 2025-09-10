@@ -3,7 +3,7 @@ import { getDatabase } from 'firebase/database';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyA3NCAxFl3qfnvATk_KxZaAC4el1zbv0F8",
+  apiKey: " ",
   authDomain: "aapdasetu-c0ce1.firebaseapp.com",
   databaseURL: "https://aapdasetu-c0ce1-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "aapdasetu-c0ce1",
