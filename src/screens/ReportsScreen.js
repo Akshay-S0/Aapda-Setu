@@ -69,7 +69,7 @@ export default function ReportsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={['#667eea', '#764ba2', '#f093fb']}
           style={styles.header}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -156,7 +156,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#f8f4ff',
   },
   header: {
     margin: 16,

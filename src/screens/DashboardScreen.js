@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Alert, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Video } from 'expo-av';
 import { useData } from '../context/DataContext';
 import { ref, set } from 'firebase/database';
 import { database } from '../config/firebase';
@@ -18,7 +19,8 @@ export default function DashboardScreen({ navigation }) {
   const drone = drones[0]; // Single VTOL drone
 
   const [motorRunning, setMotorRunning] = useState(false);
-  const [loadingAction, setLoadingAction] = useState(null); // 'clockwise' | 'anti' | 'stop' | null
+  const [loadingAction, setLoadingAction] = useState(null); // 'down' | 'up' | 'stop' | null
+  const [showSurveillance, setShowSurveillance] = useState(false);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -50,24 +52,24 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
-  const onClockwise = async () => {
+  const onDown = async () => {
     if (loadingAction) return;
-    setLoadingAction('clockwise');
-    const ok = await writeMotorCommand('cw');
+    setLoadingAction('down');
+    const ok = await writeMotorCommand('ccw');
     if (ok) {
       setMotorRunning(true);
-      Alert.alert('Motor', 'Clockwise rotation command sent to Firebase');
+      Alert.alert('Motor', 'Down command sent to Firebase');
     }
     setLoadingAction(null);
   };
 
-  const onRotateAnti = async () => {
+  const onUp = async () => {
     if (loadingAction) return;
-    setLoadingAction('anti');
-    const ok = await writeMotorCommand('ccw');
+    setLoadingAction('up');
+    const ok = await writeMotorCommand('cw');
     if (ok) {
       setMotorRunning(true);
-      Alert.alert('Motor', 'Counter-clockwise rotation command sent to Firebase');
+      Alert.alert('Motor', 'Up command sent to Firebase');
     }
     setLoadingAction(null);
   };
@@ -83,13 +85,21 @@ export default function DashboardScreen({ navigation }) {
     setLoadingAction(null);
   };
 
+  const openSurveillance = () => {
+    setShowSurveillance(true);
+  };
+
+  const closeSurveillance = () => {
+    setShowSurveillance(false);
+  };
+
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]} edges={['top', 'left', 'right']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={['#667eea', '#764ba2', '#f093fb']}
           style={styles.header}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -152,32 +162,20 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Control Panel */}
         <View style={styles.controlPanel}>
-          <Text style={styles.sectionTitle}>ESP Controls</Text>
+          <Text style={styles.sectionTitle}>Delivery Commands</Text>
           <Text style={{ color: motorRunning ? '#10B981' : '#EF4444', marginBottom: 12, fontWeight: '700' }}>
             Motor: {motorRunning ? 'RUNNING' : 'STOPPED'}
           </Text>
           <View style={styles.controlGrid}>
-            <TouchableOpacity style={styles.controlButton} onPress={onClockwise} disabled={loadingAction === 'clockwise'}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.controlGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="refresh" size={28} color="#fff" />
-                <Text style={styles.controlText}>{loadingAction === 'clockwise' ? 'Starting...' : 'Clockwise'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={onRotateAnti} disabled={loadingAction === 'anti'}>
+            <TouchableOpacity style={styles.controlButton} onPress={onUp} disabled={loadingAction === 'up'}>
               <LinearGradient
                 colors={['#3B82F6', '#1D4ED8']}
                 style={styles.controlGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Ionicons name="refresh" size={28} color="#fff" style={{ transform: [{ scaleX: -1 }] }} />
-                <Text style={styles.controlText}>{loadingAction === 'anti' ? 'Starting...' : 'Rotate Anti'}</Text>
+                <Ionicons name="chevron-up" size={28} color="#fff" />
+                <Text style={styles.controlText}>{loadingAction === 'up' ? 'Starting...' : 'Up'}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -192,8 +190,66 @@ export default function DashboardScreen({ navigation }) {
                 <Text style={styles.controlText}>{loadingAction === 'stop' ? 'Stopping...' : 'Stop'}</Text>
               </LinearGradient>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.controlButton} onPress={onDown} disabled={loadingAction === 'down'}>
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.controlGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="chevron-down" size={28} color="#fff" />
+                <Text style={styles.controlText}>{loadingAction === 'down' ? 'Starting...' : 'Down'}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* Surveillance Section */}
+        <View style={styles.surveillancePanel}>
+          <Text style={styles.sectionTitle}>Surveillance</Text>
+          <TouchableOpacity 
+            style={styles.surveillanceButton} 
+            onPress={openSurveillance}
+          >
+            <LinearGradient
+              colors={['#8B5CF6', '#7C3AED']}
+              style={styles.surveillanceGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="videocam" size={24} color="#fff" />
+              <Text style={styles.surveillanceText}>Start Surveillance</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Surveillance Video Modal */}
+        <Modal
+          visible={showSurveillance}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeSurveillance}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity 
+              style={styles.closeArea} 
+              onPress={closeSurveillance}
+              activeOpacity={1}
+            >
+              <View style={styles.videoContainer}>
+                <Video
+                  source={require('../../assets/App takeoff.mp4')}
+                  style={styles.videoPlayer}
+                  shouldPlay={true}
+                  isLooping={true}
+                  resizeMode="cover"
+                  useNativeControls={false}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
         {/* Additional Info */}
         <View style={styles.infoCard}>
@@ -227,7 +283,7 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#f8f4ff',
   },
   scrollContent: {
     paddingBottom: 24,
@@ -328,9 +384,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    justifyContent: 'center',
   },
   controlButton: {
-    width: (width - 56) / 2,
+    width: (width - 68) / 3,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -377,6 +434,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     fontWeight: '600',
+  },
+  surveillancePanel: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
+  surveillanceButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  surveillanceGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  surveillanceText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  videoContainer: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  videoPlayer: {
+    width: '100%',
+    height: 300,
   },
 });
 

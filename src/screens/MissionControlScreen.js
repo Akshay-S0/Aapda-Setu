@@ -37,7 +37,7 @@ export default function MissionControlScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={['#667eea', '#764ba2', '#f093fb']}
           style={styles.header}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -186,7 +186,7 @@ const getStatusColor = (status) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#f8f4ff',
   },
   header: {
     margin: 16,
